@@ -1,0 +1,5 @@
+{
+  "name": "ComicGen AI",
+  "description": "Turn your ideas into 4-panel comic strips instantly using Gemini AI. Generates scripts, dialogues, and visual panels automatically.",
+  "requestFramePermissions": []
+}
