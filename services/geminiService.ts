@@ -68,56 +68,82 @@ const comicSchema: Schema = {
   required: ["title", "panels"],
 };
 
-export const generateComicScript = async (prompt: string): Promise<ComicScript> => {
-  try {
-    const client = getAiClient();
-    const response = await client.models.generateContent({
-      model: SCRIPT_MODEL,
-      contents: `Create a funny or interesting 4-panel comic strip script based on this idea: "${prompt}". 
-      Ensure the visual prompts are highly descriptive for an image generation model, specifying a consistent comic book art style (e.g., 'vibrant comic book style, thick outlines, cel shaded').`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: comicSchema,
-        systemInstruction: "You are a creative comic book writer. You excel at breaking down stories into 4 visual panels with punchy dialogue.",
-      },
-    });
+// Helper for waiting
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-    const text = response.text;
-    if (!text) throw new Error("No script generated");
+// Retry logic wrapper
+async function retryOperation<T>(operation: () => Promise<T>, retries = 3, baseDelay = 5000): Promise<T> {
+  try {
+    return await operation();
+  } catch (error: any) {
+    // Check for 429 or Resource Exhausted errors
+    const isRateLimit = error?.status === 429 || error?.code === 429 || error?.message?.includes('429') || error?.message?.includes('quota');
     
-    return JSON.parse(text) as ComicScript;
-  } catch (error) {
-    console.error("Error generating script:", error);
+    if (retries > 0 && isRateLimit) {
+      console.warn(`Rate limit hit. Retrying in ${baseDelay/1000}s... (${retries} retries left)`);
+      await delay(baseDelay);
+      // Exponential backoff
+      return retryOperation(operation, retries - 1, baseDelay * 2);
+    }
     throw error;
   }
+}
+
+export const generateComicScript = async (prompt: string): Promise<ComicScript> => {
+  return retryOperation(async () => {
+    try {
+      const client = getAiClient();
+      const response = await client.models.generateContent({
+        model: SCRIPT_MODEL,
+        contents: `Create a funny or interesting 4-panel comic strip script based on this idea: "${prompt}". 
+        Ensure the visual prompts are highly descriptive for an image generation model, specifying a consistent comic book art style (e.g., 'vibrant comic book style, thick outlines, cel shaded').`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: comicSchema,
+          systemInstruction: "You are a creative comic book writer. You excel at breaking down stories into 4 visual panels with punchy dialogue.",
+        },
+      });
+
+      const text = response.text;
+      if (!text) throw new Error("No script generated");
+      
+      return JSON.parse(text) as ComicScript;
+    } catch (error) {
+      console.error("Error generating script:", error);
+      throw error;
+    }
+  });
 };
 
 export const generatePanelImage = async (visualPrompt: string): Promise<string> => {
-  try {
-    const client = getAiClient();
-    const finalPrompt = `${visualPrompt}, high quality, comic book masterpiece, 2d vector art style, flat colors, thick ink lines`;
-    
-    const response: GenerateContentResponse = await client.models.generateContent({
-      model: IMAGE_MODEL,
-      contents: finalPrompt,
-      config: {
-        // We do not set responseMimeType for image models unless we want JSON metadata, 
-        // but here we want the actual image in the response parts.
-      }
-    });
-
-    // Iterate through parts to find the image
-    if (response.candidates && response.candidates[0].content.parts) {
-        for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData && part.inlineData.data) {
-                return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-            }
+  return retryOperation(async () => {
+    try {
+      const client = getAiClient();
+      const finalPrompt = `${visualPrompt}, high quality, comic book masterpiece, 2d vector art style, flat colors, thick ink lines`;
+      
+      const response: GenerateContentResponse = await client.models.generateContent({
+        model: IMAGE_MODEL,
+        contents: finalPrompt,
+        config: {
+          // We do not set responseMimeType for image models unless we want JSON metadata, 
+          // but here we want the actual image in the response parts.
         }
-    }
+      });
 
-    throw new Error("No image data found in response");
-  } catch (error) {
-    console.error("Error generating panel image:", error);
-    throw error;
-  }
+      // Iterate through parts to find the image
+      const candidate = response.candidates?.[0];
+      if (candidate?.content?.parts) {
+          for (const part of candidate.content.parts) {
+              if (part.inlineData?.data) {
+                  return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+              }
+          }
+      }
+
+      throw new Error("No image data found in response");
+    } catch (error) {
+      console.error("Error generating panel image:", error);
+      throw error;
+    }
+  });
 };

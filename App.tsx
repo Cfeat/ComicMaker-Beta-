@@ -1,9 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { InputForm } from './components/InputForm';
 import { ComicPanel } from './components/ComicPanel';
 import { generateComicScript, generatePanelImage } from './services/geminiService';
 import { GeneratedPanel, GeneratorState } from './types';
-import { BookOpen, Download, Share2 } from 'lucide-react';
+import { Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 const App: React.FC = () => {
@@ -31,16 +31,21 @@ const App: React.FC = () => {
       setPanels(initialPanels);
       setGeneratorState(GeneratorState.GENERATING_IMAGES);
 
-      // 2. Generate Images (Parallel)
-      // We do this individually so we can update state as they finish
-      const imagePromises = script.panels.map(async (panel) => {
+      // 2. Generate Images (Sequential to avoid Rate Limits)
+      // We loop through panels one by one instead of Promise.all
+      for (const panel of script.panels) {
         try {
           const base64Image = await generatePanelImage(panel.visual_prompt);
+          
           setPanels(prev => prev.map(p => 
             p.panel_number === panel.panel_number 
               ? { ...p, imageData: base64Image, isLoading: false } 
               : p
           ));
+
+          // Add a small delay between requests to be gentle on the API free tier
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
         } catch (err) {
             console.error(`Failed to generate panel ${panel.panel_number}`, err);
             setPanels(prev => prev.map(p => 
@@ -49,9 +54,8 @@ const App: React.FC = () => {
                   : p
               ));
         }
-      });
+      }
 
-      await Promise.all(imagePromises);
       setGeneratorState(GeneratorState.COMPLETE);
 
     } catch (error) {
