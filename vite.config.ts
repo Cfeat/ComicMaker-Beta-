@@ -1,15 +1,9 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
-  // Fix: Use '.' instead of process.cwd() to avoid TS error regarding Process type
-  const env = loadEnv(mode, '.', '');
-  return {
-    plugins: [react()],
-    define: {
-      // Polyfill process.env.API_KEY for the existing service code
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
-    },
-  };
+export default defineConfig({
+  plugins: [react()],
+  // We no longer need to manually define process.env.API_KEY
+  // provided we use VITE_API_KEY and import.meta.env in the code.
 });

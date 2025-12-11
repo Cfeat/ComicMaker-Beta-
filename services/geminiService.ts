@@ -9,11 +9,11 @@ let ai: GoogleGenAI | null = null;
 
 const getAiClient = () => {
   if (!ai) {
-    // process.env.API_KEY is injected by Vite at build time
-    const apiKey = process.env.API_KEY;
+    // Vite exposes environment variables prefixed with VITE_ on import.meta.env
+    const apiKey = import.meta.env.VITE_API_KEY;
     
     if (!apiKey) {
-      throw new Error("API Key is missing. Please create a .env file in the root directory with API_KEY=your_key_here");
+      throw new Error("API Key is missing. Please check your .env file locally, or your 'Environment Variables' in Vercel Settings. Ensure the variable name is VITE_API_KEY.");
     }
 
     // We initialize here so we can catch the error if the key is missing when the user clicks generate,
