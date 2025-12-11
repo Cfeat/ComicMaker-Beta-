@@ -44,7 +44,7 @@ const App: React.FC = () => {
           ));
 
           // Add a small delay between requests to be gentle on the API free tier
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise(resolve => setTimeout(resolve, 5000));
 
         } catch (err) {
             console.error(`Failed to generate panel ${panel.panel_number}`, err);

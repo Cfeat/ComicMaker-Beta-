@@ -72,7 +72,7 @@ const comicSchema: Schema = {
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Retry logic wrapper
-async function retryOperation<T>(operation: () => Promise<T>, retries = 3, baseDelay = 5000): Promise<T> {
+async function retryOperation<T>(operation: () => Promise<T>, retries = 5, baseDelay = 5000): Promise<T> {
   try {
     return await operation();
   } catch (error: any) {
