@@ -1,0 +1,265 @@
+import { useCallback, useRef, useState } from 'react';
+import { ApiError, describeApiError, fetchComicScript, generatePanelImage } from '../services/api';
+import { abortableDelay, withRetry } from '../services/retry';
+import {
+  ComicPanelData,
+  ComicScript,
+  ComicStyle,
+  GeneratedPanel,
+  GeneratorState,
+  IMAGE_MODELS,
+  ImageModel,
+} from '../types';
+
+// Pacing between panel requests: much cheaper than the old fixed 5s sleep,
+// rate limits are handled reactively by withRetry instead.
+const PANEL_REQUEST_DELAY_MS = 1000;
+const IMAGE_RETRIES = 2;
+const IMAGE_RETRY_BASE_DELAY_MS = 3000;
+const SCRIPT_RETRIES = 1;
+const SCRIPT_RETRY_BASE_DELAY_MS = 5000;
+
+export interface GeneratorSettings {
+  model: ImageModel;
+  style: ComicStyle;
+}
+
+export const DEFAULT_SETTINGS: GeneratorSettings = {
+  model: IMAGE_MODELS[0].value,
+  style: 'comic',
+};
+
+function toGeneratedPanels(script: ComicScript): GeneratedPanel[] {
+  return script.panels.map((panel) => ({ ...panel, id: crypto.randomUUID(), isLoading: false }));
+}
+
+function panelErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 429) return 'Rate limited — wait a moment, then retry.';
+    if (error.status === 401 || error.status === 403) return 'The image API rejected the key.';
+    if (error.status === 0) return 'Could not reach the server.';
+    return error.message;
+  }
+  return 'Failed to generate this panel.';
+}
+
+function buildFileName(title: string): string {
+  const safe = title
+    .replace(/[\\/:*?"<>|]+/g, '')
+    .replace(/\s+/g, '-')
+    .slice(0, 60);
+  return `comic-${safe || 'strip'}`.toLowerCase();
+}
+
+export const useComicGenerator = () => {
+  const [state, setState] = useState<GeneratorState>('idle');
+  const [title, setTitle] = useState('');
+  const [panels, setPanels] = useState<GeneratedPanel[]>([]);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [settings, setSettings] = useState<GeneratorSettings>(DEFAULT_SETTINGS);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Mirror of `panels` that callbacks can read without going stale.
+  const panelsRef = useRef<GeneratedPanel[]>([]);
+  panelsRef.current = panels;
+  const abortRef = useRef<AbortController | null>(null);
+
+  const abortActiveRequest = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }, []);
+
+  const resetAll = useCallback(() => {
+    abortActiveRequest();
+    setPanels([]);
+    setTitle('');
+    setErrorMsg(null);
+    setState('idle');
+  }, [abortActiveRequest]);
+
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  const updateSettings = useCallback((next: GeneratorSettings) => {
+    setSettings(next);
+  }, []);
+
+  const updateTitle = useCallback((value: string) => {
+    setTitle(value);
+  }, []);
+
+  const updatePanel = useCallback((panelId: string, patch: Partial<ComicPanelData>) => {
+    setPanels((prev) => prev.map((p) => (p.id === panelId ? { ...p, ...patch } : p)));
+  }, []);
+
+  const startGeneration = useCallback(
+    async (prompt: string, nextSettings: GeneratorSettings) => {
+      abortActiveRequest();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const { signal } = controller;
+
+      setSettings(nextSettings);
+      setErrorMsg(null);
+      setPanels([]);
+      setTitle('');
+      setState('generating_script');
+
+      try {
+        const script = await withRetry(() => fetchComicScript(prompt, signal), {
+          retries: SCRIPT_RETRIES,
+          baseDelayMs: SCRIPT_RETRY_BASE_DELAY_MS,
+          signal,
+        });
+        if (signal.aborted) {
+          setState('idle');
+          return;
+        }
+        setTitle(script.title);
+        setPanels(toGeneratedPanels(script));
+        setState('reviewing_script');
+      } catch (error) {
+        if (signal.aborted) {
+          setState('idle');
+          return;
+        }
+        console.error('Script generation failed:', error);
+        setState('error');
+        setErrorMsg(describeApiError(error, 'Failed to generate the comic script.'));
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null;
+      }
+    },
+    [abortActiveRequest],
+  );
+
+  const drawPanels = useCallback(async () => {
+    const currentPanels = panelsRef.current;
+    if (currentPanels.length === 0) return;
+
+    abortActiveRequest();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
+    setErrorMsg(null);
+    setState('generating_images');
+    setPanels((prev) => prev.map((p) => ({ ...p, isLoading: true, error: undefined, imageData: undefined })));
+
+    let generatedCount = 0;
+
+    for (let index = 0; index < currentPanels.length; index++) {
+      const panel = currentPanels[index];
+      if (signal.aborted) break;
+      try {
+        const imageData = await withRetry(
+          () => generatePanelImage(panel.visual_prompt, settings.model, settings.style, signal),
+          { retries: IMAGE_RETRIES, baseDelayMs: IMAGE_RETRY_BASE_DELAY_MS, signal },
+        );
+        if (signal.aborted) break;
+        generatedCount += 1;
+        setPanels((prev) => prev.map((p) => (p.id === panel.id ? { ...p, imageData, isLoading: false } : p)));
+      } catch (error) {
+        if (signal.aborted) break;
+        console.error(`Failed to generate panel ${panel.panel_number}:`, error);
+        setPanels((prev) =>
+          prev.map((p) => (p.id === panel.id ? { ...p, isLoading: false, error: panelErrorMessage(error) } : p)),
+        );
+      }
+      // Skip the trailing delay after the last panel.
+      if (index < currentPanels.length - 1) {
+        await abortableDelay(PANEL_REQUEST_DELAY_MS, signal);
+      }
+    }
+
+    if (signal.aborted) {
+      setPanels((prev) => prev.map((p) => (p.isLoading ? { ...p, isLoading: false, error: 'Cancelled.' } : p)));
+      setState(generatedCount > 0 ? 'complete' : 'reviewing_script');
+    } else {
+      setState('complete');
+    }
+    if (abortRef.current === controller) abortRef.current = null;
+  }, [abortActiveRequest, settings]);
+
+  const regeneratePanel = useCallback(
+    async (panelId: string) => {
+      const panel = panelsRef.current.find((p) => p.id === panelId);
+      if (!panel || panel.isLoading) return;
+
+      abortActiveRequest();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const { signal } = controller;
+
+      setPanels((prev) => prev.map((p) => (p.id === panelId ? { ...p, isLoading: true, error: undefined } : p)));
+
+      try {
+        const imageData = await withRetry(
+          () => generatePanelImage(panel.visual_prompt, settings.model, settings.style, signal),
+          { retries: IMAGE_RETRIES, baseDelayMs: IMAGE_RETRY_BASE_DELAY_MS, signal },
+        );
+        setPanels((prev) => prev.map((p) => (p.id === panelId ? { ...p, imageData, isLoading: false } : p)));
+      } catch (error) {
+        if (signal.aborted) {
+          setPanels((prev) => prev.map((p) => (p.id === panelId ? { ...p, isLoading: false, error: 'Cancelled.' } : p)));
+          return;
+        }
+        console.error(`Failed to regenerate panel ${panel.panel_number}:`, error);
+        setPanels((prev) =>
+          prev.map((p) => (p.id === panelId ? { ...p, isLoading: false, error: panelErrorMessage(error) } : p)),
+        );
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null;
+      }
+    },
+    [abortActiveRequest, settings],
+  );
+
+  const downloadComic = useCallback(async () => {
+    const element = document.getElementById('comic-strip-container');
+    if (!element || isSaving) return;
+    setIsSaving(true);
+    try {
+      // Loaded on demand so this large dependency stays out of the initial bundle.
+      const { default: html2canvas } = await import('html2canvas');
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        backgroundColor: '#f8fafc',
+        useCORS: true,
+        logging: false,
+      });
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) throw new Error('Could not encode the comic image.');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `${buildFileName(title)}.png`;
+      link.href = url;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (error) {
+      console.error('Download failed:', error);
+      setErrorMsg('Sorry, the comic could not be exported as an image. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [isSaving, title]);
+
+  return {
+    state,
+    title,
+    panels,
+    errorMsg,
+    settings,
+    isSaving,
+    startGeneration,
+    drawPanels,
+    regeneratePanel,
+    cancel,
+    resetAll,
+    updateSettings,
+    updateTitle,
+    updatePanel,
+    downloadComic,
+  };
+};
