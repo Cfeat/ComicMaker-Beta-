@@ -1,6 +1,7 @@
 import React from 'react';
 import { GeneratedPanel } from '../types';
 import { RefreshCcw, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { useTranslation } from '../i18n/LanguageContext';
 
 interface ComicPanelProps {
   panel: GeneratedPanel;
@@ -11,6 +12,7 @@ interface ComicPanelProps {
 }
 
 const ComicPanelComponent: React.FC<ComicPanelProps> = ({ panel, onRegenerate, canRegenerate }) => {
+  const { t } = useTranslation();
   const showRegenerateButton = canRegenerate && !panel.isLoading && Boolean(panel.imageData);
 
   return (
@@ -20,7 +22,7 @@ const ComicPanelComponent: React.FC<ComicPanelProps> = ({ panel, onRegenerate, c
         {panel.isLoading ? (
           <div className="flex flex-col items-center justify-center text-slate-400 animate-pulse">
             <ImageIcon size={48} className="mb-2 opacity-50" />
-            <p className="font-comic font-bold text-lg">Drawing...</p>
+            <p className="font-comic font-bold text-lg">{t('panel.drawing')}</p>
           </div>
         ) : panel.error ? (
           <div className="flex flex-col items-center justify-center text-red-500 p-4 text-center">
@@ -31,18 +33,18 @@ const ComicPanelComponent: React.FC<ComicPanelProps> = ({ panel, onRegenerate, c
                 onClick={() => onRegenerate(panel.id)}
                 className="mt-2 text-xs bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded font-bold"
               >
-                Retry
+                {t('button.retry')}
               </button>
             )}
           </div>
         ) : panel.imageData ? (
           <img
             src={panel.imageData}
-            alt={`Panel ${panel.panel_number}: ${panel.description}`}
+            alt={t('panel.alt', { n: panel.panel_number, description: panel.description })}
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="text-slate-300 text-sm">No image yet.</div>
+          <div className="text-slate-300 text-sm">{t('panel.noImage')}</div>
         )}
 
         {/* Regenerate Button (Visible on Hover) */}
@@ -50,8 +52,8 @@ const ComicPanelComponent: React.FC<ComicPanelProps> = ({ panel, onRegenerate, c
           <button
             onClick={() => onRegenerate(panel.id)}
             className="absolute top-2 right-2 p-2 bg-white/90 border-2 border-black rounded-full opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-comic-yellow hover:scale-110 z-20"
-            title="Redraw this panel"
-            aria-label={`Redraw panel ${panel.panel_number}`}
+            title={t('panel.redraw', { n: panel.panel_number })}
+            aria-label={t('panel.redraw', { n: panel.panel_number })}
           >
             <RefreshCcw size={16} />
           </button>
@@ -92,5 +94,6 @@ const ComicPanelComponent: React.FC<ComicPanelProps> = ({ panel, onRegenerate, c
 };
 
 // The strip re-renders on every panel update while drawing; memoization keeps
-// finished panels from re-rendering each time.
+// finished panels from re-rendering each time. (Language changes still
+// propagate through context.)
 export const ComicPanel = React.memo(ComicPanelComponent);

@@ -93,17 +93,24 @@ async function urlToDataUrl(url: string, signal?: AbortSignal): Promise<string> 
   }
 }
 
-// Maps low-level failures to actionable messages instead of one generic
-// "AI might be busy" banner for every case.
-export function describeApiError(error: unknown, fallback: string): string {
+// Maps low-level failures to a semantic kind so UI code can translate them;
+// `detail` is the technical server message (English), displayed as-is.
+export type ApiErrorKind = 'network' | 'auth' | 'notFound' | 'rateLimit' | 'server';
+
+export interface ClassifiedApiError {
+  kind: ApiErrorKind;
+  status: number;
+  detail?: string;
+}
+
+export function classifyApiError(error: unknown): ClassifiedApiError {
   if (error instanceof ApiError) {
-    if (error.status === 0) return `${fallback} The server could not be reached. Check your connection and try again.`;
-    if (error.status === 401 || error.status === 403)
-      return `${fallback} The API key was rejected (${error.status}). Check the server configuration.`;
-    if (error.status === 404)
-      return `${fallback} The API endpoint was not found. If you deployed only the static build, the /api functions are missing — see the README for deployment notes.`;
-    if (error.status === 429) return `${fallback} The AI service is rate limited or out of quota. Wait a moment and try again.`;
-    return `${fallback} ${error.message}`;
+    if (error.status === 0) return { kind: 'network', status: 0 };
+    if (error.status === 401 || error.status === 403) return { kind: 'auth', status: error.status };
+    if (error.status === 404) return { kind: 'notFound', status: 404 };
+    if (error.status === 429) return { kind: 'rateLimit', status: 429 };
+    return { kind: 'server', status: error.status, detail: error.message };
   }
-  return fallback;
+  if (error instanceof TypeError) return { kind: 'network', status: 0 };
+  return { kind: 'server', status: 0, detail: error instanceof Error ? error.message : undefined };
 }

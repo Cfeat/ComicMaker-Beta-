@@ -4,6 +4,8 @@ Turn a one-line idea into a 4-panel comic strip: **Google Gemini** writes the sc
 
 ## Features
 
+- **Bilingual UI (中文/English)** with a corner language toggle — Chinese by default, preference remembered per browser
+- **Built-in user guide** (corner “Help” button): full walkthrough, what every option means, and troubleshooting
 - AI script generation with your choice of writer: **Gemini 2.5 Flash** (structured output) or **GPT models via the OpenAI-compatible proxy** (`gpt-5.5`, `gpt-5.6-sol`, `gpt-5.6-terra`) — the GPT writers reuse the image API key, no Gemini key needed
 - **Review & edit step** — tweak the title, dialogue, captions and visual prompts *before* any image is generated, so you don't waste API calls on a script you don't like
 - Art-style presets: Comic Book / Manga / Noir / Watercolor / Cartoon
@@ -30,6 +32,7 @@ The keys live only in server-side environment variables. Never prefix them with 
 
 ```
 api/                    # Vercel serverless functions (script, image, config)
+i18n/                   # zh/en translation dictionaries + LanguageProvider
 server/
   comicService.ts       # Gemini + GPT script writers, image API forwarding, server-side retry
   routes.ts             # Request validation, shared by /api functions and the dev proxy

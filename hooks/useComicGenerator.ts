@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, describeApiError, fetchComicScript, fetchServerConfig, generatePanelImage } from '../services/api';
+import {
+  classifyApiError,
+  fetchComicScript,
+  fetchServerConfig,
+  generatePanelImage,
+  type ApiErrorKind,
+} from '../services/api';
 import { abortableDelay, withRetry } from '../services/retry';
+import { useTranslation } from '../i18n/LanguageContext';
+import type { TranslationKey } from '../i18n/translations';
 import {
   ComicPanelData,
   ComicScript,
@@ -38,15 +46,12 @@ function toGeneratedPanels(script: ComicScript): GeneratedPanel[] {
   return script.panels.map((panel) => ({ ...panel, id: crypto.randomUUID(), isLoading: false }));
 }
 
-function panelErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 429) return 'Rate limited — wait a moment, then retry.';
-    if (error.status === 401 || error.status === 403) return 'The image API rejected the key.';
-    if (error.status === 0) return 'Could not reach the server.';
-    return error.message;
-  }
-  return 'Failed to generate this panel.';
-}
+const ERROR_CONTEXT_KEYS: Partial<Record<ApiErrorKind, TranslationKey>> = {
+  network: 'error.context.network',
+  auth: 'error.context.auth',
+  notFound: 'error.context.notFound',
+  rateLimit: 'error.context.rateLimit',
+};
 
 function buildFileName(title: string): string {
   const safe = title
@@ -57,6 +62,8 @@ function buildFileName(title: string): string {
 }
 
 export const useComicGenerator = () => {
+  const { t } = useTranslation();
+
   const [state, setState] = useState<GeneratorState>('idle');
   const [title, setTitle] = useState('');
   const [panels, setPanels] = useState<GeneratedPanel[]>([]);
@@ -64,6 +71,11 @@ export const useComicGenerator = () => {
   const [settings, setSettings] = useState<GeneratorSettings>(DEFAULT_SETTINGS);
   const [isSaving, setIsSaving] = useState(false);
   const [config, setConfig] = useState<ServerConfig | null>(null);
+
+  // Mirror of `panels` that callbacks can read without going stale.
+  const panelsRef = useRef<GeneratedPanel[]>([]);
+  panelsRef.current = panels;
+  const abortRef = useRef<AbortController | null>(null);
 
   // Which script providers have keys configured (from GET /api/config), so the
   // UI can default to a model that actually works. Null = unknown.
@@ -82,15 +94,38 @@ export const useComicGenerator = () => {
     };
   }, []);
 
-  // Mirror of `panels` that callbacks can read without going stale.
-  const panelsRef = useRef<GeneratedPanel[]>([]);
-  panelsRef.current = panels;
-  const abortRef = useRef<AbortController | null>(null);
-
   const abortActiveRequest = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
   }, []);
+
+  const describeError = useCallback(
+    (error: unknown, fallbackKey: TranslationKey): string => {
+      const { kind, status, detail } = classifyApiError(error);
+      const fallback = t(fallbackKey);
+      const contextKey = ERROR_CONTEXT_KEYS[kind];
+      if (contextKey) return `${fallback} ${t(contextKey, { status })}`;
+      return detail ? `${fallback} ${detail}` : fallback;
+    },
+    [t],
+  );
+
+  const panelErrorMessage = useCallback(
+    (error: unknown): string => {
+      const { kind, detail } = classifyApiError(error);
+      switch (kind) {
+        case 'rateLimit':
+          return t('panel.rateLimited');
+        case 'auth':
+          return t('panel.authRejected');
+        case 'network':
+          return t('panel.network');
+        default:
+          return detail ?? t('panel.failed');
+      }
+    },
+    [t],
+  );
 
   const resetAll = useCallback(() => {
     abortActiveRequest();
@@ -149,12 +184,12 @@ export const useComicGenerator = () => {
         }
         console.error('Script generation failed:', error);
         setState('error');
-        setErrorMsg(describeApiError(error, 'Failed to generate the comic script.'));
+        setErrorMsg(describeError(error, 'error.scriptFailed'));
       } finally {
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [abortActiveRequest],
+    [abortActiveRequest, describeError],
   );
 
   const drawPanels = useCallback(async () => {
@@ -197,13 +232,13 @@ export const useComicGenerator = () => {
     }
 
     if (signal.aborted) {
-      setPanels((prev) => prev.map((p) => (p.isLoading ? { ...p, isLoading: false, error: 'Cancelled.' } : p)));
+      setPanels((prev) => prev.map((p) => (p.isLoading ? { ...p, isLoading: false, error: t('panel.cancelled') } : p)));
       setState(generatedCount > 0 ? 'complete' : 'reviewing_script');
     } else {
       setState('complete');
     }
     if (abortRef.current === controller) abortRef.current = null;
-  }, [abortActiveRequest, settings]);
+  }, [abortActiveRequest, settings, panelErrorMessage, t]);
 
   const regeneratePanel = useCallback(
     async (panelId: string) => {
@@ -225,7 +260,7 @@ export const useComicGenerator = () => {
         setPanels((prev) => prev.map((p) => (p.id === panelId ? { ...p, imageData, isLoading: false } : p)));
       } catch (error) {
         if (signal.aborted) {
-          setPanels((prev) => prev.map((p) => (p.id === panelId ? { ...p, isLoading: false, error: 'Cancelled.' } : p)));
+          setPanels((prev) => prev.map((p) => (p.id === panelId ? { ...p, isLoading: false, error: t('panel.cancelled') } : p)));
           return;
         }
         console.error(`Failed to regenerate panel ${panel.panel_number}:`, error);
@@ -236,7 +271,7 @@ export const useComicGenerator = () => {
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [abortActiveRequest, settings],
+    [abortActiveRequest, settings, panelErrorMessage, t],
   );
 
   const downloadComic = useCallback(async () => {
@@ -262,11 +297,11 @@ export const useComicGenerator = () => {
       window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (error) {
       console.error('Download failed:', error);
-      setErrorMsg('Sorry, the comic could not be exported as an image. Please try again.');
+      setErrorMsg(t('error.downloadFailed'));
     } finally {
       setIsSaving(false);
     }
-  }, [isSaving, title]);
+  }, [isSaving, title, t]);
 
   return {
     state,

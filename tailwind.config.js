@@ -12,8 +12,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        'comic': ['"Comic Neue"', 'cursive'],
-        'bangers': ['"Bangers"', 'cursive'],
+        // ZCOOL KuaiLe / Microsoft YaHei act as CJK fallbacks so Chinese text
+        // keeps a playful look when the Latin comic fonts have no CJK glyphs.
+        'comic': ['"Comic Neue"', '"ZCOOL KuaiLe"', '"Microsoft YaHei"', 'sans-serif'],
+        'bangers': ['"Bangers"', '"ZCOOL KuaiLe"', '"Microsoft YaHei"', 'cursive'],
       },
       colors: {
         'comic-yellow': '#F9F871',
