@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Buffer } from 'node:buffer';
 import { cwd } from 'node:process';
-import { handleImageRequest, handleScriptRequest, toErrorResponse, type RouteResult } from './server/routes';
+import { handleConfigRequest, handleImageRequest, handleScriptRequest, toErrorResponse, type RouteResult } from './server/routes';
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
@@ -32,14 +32,18 @@ function devApiPlugin(env: Record<string, string>): Plugin {
   return {
     name: 'comicgen-dev-api',
     configureServer(server) {
-      const mount = (path: string, route: (body: unknown) => Promise<RouteResult>) => {
+      const mount = (
+        path: string,
+        method: 'GET' | 'POST',
+        route: (body: unknown) => Promise<RouteResult> | RouteResult,
+      ) => {
         server.middlewares.use(path, async (req, res) => {
-          if (req.method !== 'POST') {
-            sendJson(res, 405, { error: 'Method not allowed. Use POST.' });
+          if (req.method !== method) {
+            sendJson(res, 405, { error: `Method not allowed. Use ${method}.` });
             return;
           }
           try {
-            const body = await readJsonBody(req);
+            const body = method === 'POST' ? await readJsonBody(req) : null;
             const result = await route(body);
             sendJson(res, result.status, result.data);
           } catch (error) {
@@ -48,8 +52,9 @@ function devApiPlugin(env: Record<string, string>): Plugin {
           }
         });
       };
-      mount('/api/script', (body) => handleScriptRequest(body, env));
-      mount('/api/image', (body) => handleImageRequest(body, env));
+      mount('/api/script', 'POST', (body) => handleScriptRequest(body, env));
+      mount('/api/image', 'POST', (body) => handleImageRequest(body, env));
+      mount('/api/config', 'GET', () => handleConfigRequest(env));
     },
   };
 }

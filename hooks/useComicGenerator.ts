@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import { ApiError, describeApiError, fetchComicScript, generatePanelImage } from '../services/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ApiError, describeApiError, fetchComicScript, fetchServerConfig, generatePanelImage } from '../services/api';
 import { abortableDelay, withRetry } from '../services/retry';
 import {
   ComicPanelData,
@@ -9,6 +9,9 @@ import {
   GeneratorState,
   IMAGE_MODELS,
   ImageModel,
+  SCRIPT_MODELS,
+  ScriptModel,
+  ServerConfig,
 } from '../types';
 
 // Pacing between panel requests: much cheaper than the old fixed 5s sleep,
@@ -22,11 +25,13 @@ const SCRIPT_RETRY_BASE_DELAY_MS = 5000;
 export interface GeneratorSettings {
   model: ImageModel;
   style: ComicStyle;
+  scriptModel: ScriptModel;
 }
 
 export const DEFAULT_SETTINGS: GeneratorSettings = {
   model: IMAGE_MODELS[0].value,
   style: 'comic',
+  scriptModel: SCRIPT_MODELS[0].value,
 };
 
 function toGeneratedPanels(script: ComicScript): GeneratedPanel[] {
@@ -58,6 +63,24 @@ export const useComicGenerator = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [settings, setSettings] = useState<GeneratorSettings>(DEFAULT_SETTINGS);
   const [isSaving, setIsSaving] = useState(false);
+  const [config, setConfig] = useState<ServerConfig | null>(null);
+
+  // Which script providers have keys configured (from GET /api/config), so the
+  // UI can default to a model that actually works. Null = unknown.
+  useEffect(() => {
+    let cancelled = false;
+    fetchServerConfig()
+      .then((value) => {
+        if (!cancelled) setConfig(value);
+      })
+      .catch(() => {
+        // Config unavailable (e.g. static deploy without functions): the UI
+        // falls back to showing every option.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Mirror of `panels` that callbacks can read without going stale.
   const panelsRef = useRef<GeneratedPanel[]>([]);
@@ -107,7 +130,7 @@ export const useComicGenerator = () => {
       setState('generating_script');
 
       try {
-        const script = await withRetry(() => fetchComicScript(prompt, signal), {
+        const script = await withRetry(() => fetchComicScript(prompt, nextSettings.scriptModel, signal), {
           retries: SCRIPT_RETRIES,
           baseDelayMs: SCRIPT_RETRY_BASE_DELAY_MS,
           signal,
@@ -252,6 +275,7 @@ export const useComicGenerator = () => {
     errorMsg,
     settings,
     isSaving,
+    config,
     startGeneration,
     drawPanels,
     regeneratePanel,

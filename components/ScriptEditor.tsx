@@ -54,7 +54,7 @@ export const ScriptEditor: React.FC<ScriptEditorProps> = ({
       </div>
 
       <p className="text-center text-slate-500 text-sm mb-4 flex items-center justify-center gap-1.5">
-        <PenLine size={14} /> Gemini wrote this script — edit any line before the panels are drawn.
+        <PenLine size={14} /> The AI wrote this script — edit any line before the panels are drawn.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">

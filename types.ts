@@ -8,6 +8,25 @@ export const IMAGE_MODELS = [
 
 export type ImageModel = (typeof IMAGE_MODELS)[number]['value'];
 
+// Script writers. GPT models run on the same OpenAI-compatible proxy as the
+// image models (chat/completions), so they only need IMAGE_API_KEY.
+export const SCRIPT_MODELS = [
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'gemini' },
+  { value: 'gpt-5.5', label: 'GPT-5.5', provider: 'openai' },
+  { value: 'gpt-5.6-sol', label: 'GPT-5.6 Sol', provider: 'openai' },
+  { value: 'gpt-5.6-terra', label: 'GPT-5.6 Terra', provider: 'openai' },
+] as const;
+
+export type ScriptModel = (typeof SCRIPT_MODELS)[number]['value'];
+export type ScriptProvider = 'gemini' | 'openai';
+
+// Told to the client by GET /api/config so the UI can disable script models
+// whose key is missing and default to an available one. Booleans only — no
+// secrets ever leave the server.
+export interface ServerConfig {
+  providers: { gemini: boolean; openai: boolean };
+}
+
 // Art-style presets appended to every visual prompt.
 export const STYLE_PRESETS = {
   comic: {

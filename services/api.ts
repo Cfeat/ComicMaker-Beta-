@@ -1,4 +1,4 @@
-import { ComicScript, ComicStyle, IMAGE_MODELS, ImageModel, STYLE_PRESETS } from '../types';
+import { ComicScript, ComicStyle, IMAGE_MODELS, ImageModel, ScriptModel, ServerConfig, STYLE_PRESETS } from '../types';
 
 // Carries the HTTP status so callers can decide whether to retry and what
 // message to show (401 = key rejected, 429 = rate limited, ...).
@@ -34,8 +34,17 @@ async function postJson<TResponse>(path: string, body: unknown, signal?: AbortSi
   return result as TResponse;
 }
 
-export function fetchComicScript(prompt: string, signal?: AbortSignal): Promise<ComicScript> {
-  return postJson<ComicScript>('/api/script', { prompt }, signal);
+export function fetchComicScript(prompt: string, scriptModel: ScriptModel, signal?: AbortSignal): Promise<ComicScript> {
+  return postJson<ComicScript>('/api/script', { prompt, scriptModel }, signal);
+}
+
+export async function fetchServerConfig(): Promise<ServerConfig> {
+  const response = await fetch('/api/config');
+  const result = (await response.json().catch(() => null)) as ServerConfig | null;
+  if (!response.ok || !result?.providers) {
+    throw new ApiError(response.ok ? 502 : response.status, 'Could not load the server configuration.');
+  }
+  return result;
 }
 
 export async function generatePanelImage(

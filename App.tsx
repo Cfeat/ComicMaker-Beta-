@@ -4,7 +4,7 @@ import { ComicPanel } from './components/ComicPanel';
 import { ScriptEditor } from './components/ScriptEditor';
 import { useComicGenerator } from './hooks/useComicGenerator';
 import { Download, Loader2 } from 'lucide-react';
-import { IMAGE_MODELS, STYLE_PRESETS } from './types';
+import { IMAGE_MODELS, SCRIPT_MODELS, STYLE_PRESETS } from './types';
 
 const App: React.FC = () => {
   const {
@@ -14,6 +14,7 @@ const App: React.FC = () => {
     errorMsg,
     settings,
     isSaving,
+    config,
     startGeneration,
     drawPanels,
     regeneratePanel,
@@ -28,6 +29,7 @@ const App: React.FC = () => {
   const isStripVisible = panels.length > 0 && (state === 'generating_images' || state === 'complete');
   const hasAnyImage = panels.some((panel) => Boolean(panel.imageData));
   const modelLabel = IMAGE_MODELS.find((entry) => entry.value === settings.model)?.label ?? settings.model;
+  const scriptModelLabel = SCRIPT_MODELS.find((entry) => entry.value === settings.scriptModel)?.label ?? settings.scriptModel;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center py-8 px-4 font-comic selection:bg-comic-yellow">
@@ -47,7 +49,7 @@ const App: React.FC = () => {
       </header>
 
       {/* Input Form */}
-      <InputForm onSubmit={startGeneration} onSettingsChange={updateSettings} state={state} onCancel={cancel} />
+      <InputForm onSubmit={startGeneration} onSettingsChange={updateSettings} state={state} onCancel={cancel} config={config} />
 
       {/* Error Message */}
       {errorMsg && (
@@ -103,8 +105,8 @@ const App: React.FC = () => {
           </div>
 
           <div className="mt-8 text-center text-slate-400 text-sm font-sans">
-            Script by Google Gemini · Images by {modelLabel} · {STYLE_PRESETS[settings.style].label} style · AI can
-            make mistakes.
+            Script by {scriptModelLabel} · Images by {modelLabel} · {STYLE_PRESETS[settings.style].label} style · AI
+            can make mistakes.
           </div>
         </div>
       )}
@@ -124,7 +126,7 @@ const App: React.FC = () => {
               2
             </div>
             <h3 className="font-bold mb-2">AI Scripts It</h3>
-            <p className="text-sm">Gemini writes the panels and dialogue — and you can edit every line.</p>
+            <p className="text-sm">Your chosen AI writes the panels and dialogue — and you can edit every line.</p>
           </div>
           <div className="bg-white p-6 rounded-xl border-2 border-slate-200 text-center">
             <div className="w-12 h-12 bg-comic-purple rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-black text-white">

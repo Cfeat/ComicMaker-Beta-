@@ -4,10 +4,11 @@ Turn a one-line idea into a 4-panel comic strip: **Google Gemini** writes the sc
 
 ## Features
 
-- AI script generation via Gemini 2.5 Flash (structured JSON output)
+- AI script generation with your choice of writer: **Gemini 2.5 Flash** (structured output) or **GPT models via the OpenAI-compatible proxy** (`gpt-5.5`, `gpt-5.6-sol`, `gpt-5.6-terra`) — the GPT writers reuse the image API key, no Gemini key needed
 - **Review & edit step** — tweak the title, dialogue, captions and visual prompts *before* any image is generated, so you don't waste API calls on a script you don't like
 - Art-style presets: Comic Book / Manga / Noir / Watercolor / Cartoon
 - Per-panel redraw, cancel button mid-run, automatic retries with exponential backoff on rate limits
+- The app auto-detects which script providers have keys configured (via `GET /api/config`) and disables the rest
 - Export the finished strip as a PNG
 
 ## Architecture & Security
@@ -15,8 +16,9 @@ Turn a one-line idea into a 4-panel comic strip: **Google Gemini** writes the sc
 The browser never sees any API keys. All AI calls go through two serverless endpoints:
 
 ```
-Browser ──POST /api/script──▶ server routes ──▶ Google Gemini (script)
+Browser ──POST /api/script──▶ server routes ──▶ Gemini (or GPT chat models via the proxy)
 Browser ──POST /api/image ──▶ server routes ──▶ OpenAI-compatible image API (panels)
+Browser ──GET  /api/config──▶ server routes ──▶ which script providers have keys configured
 ```
 
 - **Local dev:** `npm run dev` serves these endpoints through a Vite plugin (`vite.config.ts`) that runs the exact same route handlers, reading keys from `.env.local`.
@@ -27,9 +29,9 @@ The keys live only in server-side environment variables. Never prefix them with 
 ## Project Structure
 
 ```
-api/                    # Vercel serverless functions (script, image)
+api/                    # Vercel serverless functions (script, image, config)
 server/
-  comicService.ts       # Gemini client + image API forwarding + server-side retry
+  comicService.ts       # Gemini + GPT script writers, image API forwarding, server-side retry
   routes.ts             # Request validation, shared by /api functions and the dev proxy
 services/
   api.ts                # Browser-side API client (fetch /api/*, error mapping, URL→dataURL)
@@ -56,9 +58,9 @@ Open http://localhost:5173.
 
 | Variable | Purpose |
 | --- | --- |
-| `GEMINI_API_KEY` | Google AI Studio key for script generation |
-| `IMAGE_API_KEY` | Bearer token for the image generation API |
-| `IMAGE_API_BASE_URL` | Optional. Base URL of the image API (defaults to `https://api.guigesama.xyz/v1`) |
+| `GEMINI_API_KEY` | Optional. Google AI Studio key — only needed if you want Gemini as a script writer |
+| `IMAGE_API_KEY` | Bearer token for the OpenAI-compatible API (image generation + GPT script models) |
+| `IMAGE_API_BASE_URL` | Optional. Base URL of the API (defaults to `https://api.guigesama.xyz/v1`) |
 
 ## Deploying to Vercel
 

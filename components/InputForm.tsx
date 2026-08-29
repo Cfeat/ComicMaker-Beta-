@@ -1,6 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
-import { ComicStyle, GeneratorState, IMAGE_MODELS, ImageModel, STYLE_PRESETS } from '../types';
+import {
+  ComicStyle,
+  GeneratorState,
+  IMAGE_MODELS,
+  ImageModel,
+  SCRIPT_MODELS,
+  ScriptModel,
+  ScriptProvider,
+  ServerConfig,
+  STYLE_PRESETS,
+} from '../types';
 import { DEFAULT_SETTINGS, type GeneratorSettings } from '../hooks/useComicGenerator';
 
 interface InputFormProps {
@@ -8,6 +18,7 @@ interface InputFormProps {
   onSettingsChange: (settings: GeneratorSettings) => void;
   state: GeneratorState;
   onCancel: () => void;
+  config: ServerConfig | null;
 }
 
 const STATUS_TEXT: Record<GeneratorState, string | null> = {
@@ -31,29 +42,51 @@ const STATUS_CLASS: Record<GeneratorState, string> = {
 const selectClass =
   'rounded-lg border-2 border-black bg-white px-3 py-1.5 text-slate-900 disabled:cursor-not-allowed disabled:opacity-60';
 
-export const InputForm: React.FC<InputFormProps> = ({ onSubmit, onSettingsChange, state, onCancel }) => {
+export const InputForm: React.FC<InputFormProps> = ({ onSubmit, onSettingsChange, state, onCancel, config }) => {
   const [prompt, setPrompt] = useState('');
   const [model, setModel] = useState<ImageModel>(DEFAULT_SETTINGS.model);
   const [style, setStyle] = useState<ComicStyle>(DEFAULT_SETTINGS.style);
+  const [scriptModel, setScriptModel] = useState<ScriptModel>(DEFAULT_SETTINGS.scriptModel);
 
   const isGenerating = state === 'generating_script' || state === 'generating_images';
   const statusText = STATUS_TEXT[state];
 
+  // While the server config is unknown every option is offered; once it
+  // loads, models whose provider key is missing are disabled and the
+  // selection jumps to the first model that can actually run.
+  const isProviderAvailable = (provider: ScriptProvider) => config === null || Boolean(config.providers[provider]);
+
+  useEffect(() => {
+    if (!config) return;
+    const current = SCRIPT_MODELS.find((entry) => entry.value === scriptModel);
+    if (current && config.providers[current.provider]) return;
+    const firstAvailable = SCRIPT_MODELS.find((entry) => config.providers[entry.provider]);
+    if (firstAvailable && firstAvailable.value !== scriptModel) {
+      setScriptModel(firstAvailable.value);
+      onSettingsChange({ model, style, scriptModel: firstAvailable.value });
+    }
+  }, [config, scriptModel, model, style, onSettingsChange]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim() && !isGenerating) {
-      onSubmit(prompt.trim(), { model, style });
+      onSubmit(prompt.trim(), { model, style, scriptModel });
     }
   };
 
   const updateStyle = (nextStyle: ComicStyle) => {
     setStyle(nextStyle);
-    onSettingsChange({ model, style: nextStyle });
+    onSettingsChange({ model, style: nextStyle, scriptModel });
   };
 
   const updateModel = (nextModel: ImageModel) => {
     setModel(nextModel);
-    onSettingsChange({ model: nextModel, style });
+    onSettingsChange({ model: nextModel, style, scriptModel });
+  };
+
+  const updateScriptModel = (nextScriptModel: ScriptModel) => {
+    setScriptModel(nextScriptModel);
+    onSettingsChange({ model, style, scriptModel: nextScriptModel });
   };
 
   return (
@@ -85,6 +118,25 @@ export const InputForm: React.FC<InputFormProps> = ({ onSubmit, onSettingsChange
           </button>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2 font-sans text-sm font-bold text-slate-600">
+          <label className="flex items-center gap-2">
+            Script model
+            <select
+              value={scriptModel}
+              onChange={(event) => updateScriptModel(event.target.value as ScriptModel)}
+              disabled={isGenerating}
+              className={selectClass}
+            >
+              {SCRIPT_MODELS.map((entry) => {
+                const available = isProviderAvailable(entry.provider);
+                return (
+                  <option key={entry.value} value={entry.value} disabled={!available}>
+                    {entry.label}
+                    {available ? '' : ' (key not set)'}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
           <label className="flex items-center gap-2">
             Art style
             <select
