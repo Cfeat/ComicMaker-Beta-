@@ -3,7 +3,7 @@ import { handleImageRequest, toErrorResponse } from './lib/routes.js';
 
 // Image generation can take tens of seconds, so raise the limit beyond the
 // 10s default.
-export const config = { maxDuration: 60 };
+export const config = { maxDuration: 300 };
 
 function json(status: number, data: unknown): Response {
   return new Response(JSON.stringify(data), {

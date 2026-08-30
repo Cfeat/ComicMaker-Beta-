@@ -3,7 +3,7 @@ import { handleScriptRequest, toErrorResponse } from './lib/routes.js';
 
 // Script generation includes server-side retries with backoff, so give the
 // function headroom beyond the 10s default.
-export const config = { maxDuration: 60 };
+export const config = { maxDuration: 300 };
 
 function json(status: number, data: unknown): Response {
   return new Response(JSON.stringify(data), {

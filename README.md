@@ -71,7 +71,7 @@ Open http://localhost:5173.
 
 ### Deployment notes & limits
 
-- Functions are configured with `maxDuration: 60` because image generation can take tens of seconds.
+- Functions are configured with `maxDuration: 300` because text and image generation can take several minutes. The effective maximum still depends on the Vercel plan.
 - Vercel caps serverless response bodies at ~4.5 MB: 1024×1024 PNGs (base64) are fine, but the **4K model can exceed the cap** and may fail on Vercel while working locally.
 - If the image API rejects the `size` parameter for a model, adjust `IMAGE_MODELS` in `types.ts` (set `size: undefined` to omit it).
 - Deploying the static build alone (without the functions) will break generation — the app calls relative `/api/*` endpoints.

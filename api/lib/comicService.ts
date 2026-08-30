@@ -17,6 +17,8 @@ export class HttpError extends Error {
 
 const SCRIPT_SYSTEM_INSTRUCTION =
   'You are a creative comic book writer. You excel at breaking down stories into 4 visual panels with punchy dialogue.';
+const SCRIPT_REQUEST_TIMEOUT_MS = 240_000;
+const IMAGE_REQUEST_TIMEOUT_MS = 240_000;
 
 const comicSchema: Schema = {
   type: Type.OBJECT,
@@ -259,11 +261,20 @@ async function createScriptWithOpenAI(
 
   try {
     const content = await withRetry(async () => {
-      let response = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ model, messages, response_format: { type: 'json_object' } }),
-      });
+      let response: Response;
+      try {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers,
+          signal: AbortSignal.timeout(SCRIPT_REQUEST_TIMEOUT_MS),
+          body: JSON.stringify({ model, messages, response_format: { type: 'json_object' } }),
+        });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'TimeoutError') {
+          throw new HttpError(504, 'The script model took too long to respond after 4 minutes. Please try again or choose another script model.');
+        }
+        throw error;
+      }
 
       // Some OpenAI-compatible backends reject the response_format parameter;
       // fall back to prompt-only JSON mode once in that case.
@@ -272,18 +283,29 @@ async function createScriptWithOpenAI(
         if (!raw.toLowerCase().includes('response_format')) {
           throw new HttpError(400, extractApiErrorMessage(raw, 'The script model rejected the request.'));
         }
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ model, messages }),
-        });
+        try {
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers,
+            signal: AbortSignal.timeout(SCRIPT_REQUEST_TIMEOUT_MS),
+            body: JSON.stringify({ model, messages }),
+          });
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'TimeoutError') {
+            throw new HttpError(504, 'The script model took too long to respond after 4 minutes. Please try again or choose another script model.');
+          }
+          throw error;
+        }
       }
 
       const result = (await response.json().catch(() => null)) as ChatCompletionResponse | null;
       if (!response.ok) {
         throw new HttpError(
           response.status,
-          result?.error?.message || `Script generation failed with status ${response.status}.`,
+          result?.error?.message ||
+            (response.status === 504
+              ? 'The script model timed out after 4 minutes. Please try again or choose another script model.'
+              : `Script generation failed with status ${response.status}.`),
         );
       }
 
@@ -340,9 +362,13 @@ export async function generateImage({
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
+      signal: AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS),
       body: JSON.stringify({ model, prompt, n: 1, ...(size ? { size } : {}) }),
     });
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      throw new HttpError(504, 'The image model took too long to respond after 4 minutes. Please try again.');
+    }
     throw new HttpError(502, `Could not reach the image API: ${(error as Error).message}`);
   }
 
