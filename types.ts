@@ -31,23 +31,28 @@ export interface ServerConfig {
 export const STYLE_PRESETS = {
   comic: {
     label: 'Comic Book',
-    suffix: 'vibrant comic book style, thick black ink outlines, cel shaded, bold saturated colors, high quality',
+    suffix:
+      'distinctive American superhero comic style, dynamic foreshortening, dramatic low-angle composition, heavy variable-width black inks, bold contour lines, hard-edged cel shading, saturated primary colors, strong rim lighting, halftone print texture, energetic action-panel finish; do not use Japanese manga linework or watercolor rendering',
   },
   manga: {
     label: 'Manga',
-    suffix: 'black and white manga style, clean linework, screentone shading, dramatic perspective, high quality',
+    suffix:
+      'distinctive Japanese manga style, expressive anime-inspired faces and eyes, clean precise ink linework, controlled speed lines, screentone shading, selective solid blacks, cinematic panel composition, emotionally readable gestures, mostly monochrome with restrained gray tones; do not use American superhero coloring, glossy 3D rendering, or watercolor painting',
   },
   noir: {
     label: 'Noir',
-    suffix: 'high-contrast black and white noir comic style, dramatic shadows, ink wash, moody atmosphere',
+    suffix:
+      'strict black-and-white noir comic style, pure monochrome only, no hue and no color, stark chiaroscuro lighting, large graphic black shadow shapes, hard venetian-blind shadows, gritty brush-and-ink texture, smoky urban atmosphere, stark cinematic composition; do not use colorful comic-book rendering or anime styling',
   },
   watercolor: {
     label: 'Watercolor',
-    suffix: 'soft watercolor illustration style, gentle pastel palette, paper texture, loose brushwork',
+    suffix:
+      'traditional hand-painted watercolor storybook illustration, translucent layered washes, visible paper grain, soft bleeding edges, loose natural brushwork, gentle pastel palette, organic imperfect shapes, atmospheric light; do not use heavy comic inks, cel shading, or 3D rendering',
   },
   cartoon: {
     label: 'Cartoon',
-    suffix: 'modern flat cartoon style, simple bold shapes, bright playful colors, clean vector look',
+    suffix:
+      'distinctive modern editorial cartoon style, simple geometric shapes, clean uniform outlines, flat vector-like color blocks, playful exaggerated expressions, minimal detail, bright limited palette, crisp graphic silhouette; do not use realistic rendering, manga screentones, or painterly brushwork',
   },
 } as const;
 

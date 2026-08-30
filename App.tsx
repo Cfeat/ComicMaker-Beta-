@@ -37,7 +37,7 @@ const App: React.FC = () => {
   const scriptModelLabel = SCRIPT_MODELS.find((entry) => entry.value === settings.scriptModel)?.label ?? settings.scriptModel;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center pt-20 pb-8 md:pt-8 px-4 font-comic selection:bg-comic-yellow">
+    <div className="min-h-screen w-full bg-slate-50 flex flex-col items-center pt-20 pb-8 md:pt-8 px-3 sm:px-4 font-comic selection:bg-comic-yellow">
       {/* Corner controls: help + language switch */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
         <button
@@ -78,9 +78,9 @@ const App: React.FC = () => {
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       {/* Header */}
-      <header className="mb-8 text-center">
+      <header className="mb-8 w-full max-w-2xl text-center">
         <div className="inline-block relative">
-          <h1 className="text-5xl md:text-7xl font-bangers text-comic-purple tracking-wider drop-shadow-[4px_4px_0px_rgba(0,0,0,1)] stroke-black">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bangers text-comic-purple tracking-wider drop-shadow-[4px_4px_0px_rgba(0,0,0,1)] stroke-black break-words">
             COMICGEN AI
           </h1>
           <div className="absolute -top-6 -right-8 rotate-12 bg-comic-yellow border-2 border-black px-2 py-1 rounded-lg shadow-[2px_2px_0px_rgba(0,0,0,1)]">

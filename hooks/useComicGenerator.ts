@@ -206,6 +206,7 @@ export const useComicGenerator = () => {
     setPanels((prev) => prev.map((p) => ({ ...p, isLoading: true, error: undefined, imageData: undefined })));
 
     let generatedCount = 0;
+    const failedPanels: GeneratedPanel[] = [];
 
     for (let index = 0; index < currentPanels.length; index++) {
       const panel = currentPanels[index];
@@ -221,6 +222,7 @@ export const useComicGenerator = () => {
       } catch (error) {
         if (signal.aborted) break;
         console.error(`Failed to generate panel ${panel.panel_number}:`, error);
+        failedPanels.push(panel);
         setPanels((prev) =>
           prev.map((p) => (p.id === panel.id ? { ...p, isLoading: false, error: panelErrorMessage(error) } : p)),
         );
@@ -228,6 +230,29 @@ export const useComicGenerator = () => {
       // Skip the trailing delay after the last panel.
       if (index < currentPanels.length - 1) {
         await abortableDelay(PANEL_REQUEST_DELAY_MS, signal);
+      }
+    }
+
+    // Give failed panels a second pass after the rest of the strip has had a
+    // chance to finish. This prevents one transient failure from leaving a
+    // permanent hole while still keeping the workflow bounded.
+    for (const panel of failedPanels) {
+      if (signal.aborted) break;
+      setPanels((prev) => prev.map((p) => (p.id === panel.id ? { ...p, isLoading: true, error: undefined } : p)));
+      try {
+        const imageData = await withRetry(
+          () => generatePanelImage(panel.visual_prompt, settings.model, settings.style, signal),
+          { retries: IMAGE_RETRIES, baseDelayMs: IMAGE_RETRY_BASE_DELAY_MS, signal },
+        );
+        if (signal.aborted) break;
+        generatedCount += 1;
+        setPanels((prev) => prev.map((p) => (p.id === panel.id ? { ...p, imageData, isLoading: false, error: undefined } : p)));
+      } catch (error) {
+        if (signal.aborted) break;
+        console.error(`Failed to retry panel ${panel.panel_number}:`, error);
+        setPanels((prev) =>
+          prev.map((p) => (p.id === panel.id ? { ...p, isLoading: false, error: panelErrorMessage(error) } : p)),
+        );
       }
     }
 

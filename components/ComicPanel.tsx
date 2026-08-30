@@ -17,8 +17,15 @@ const ComicPanelComponent: React.FC<ComicPanelProps> = ({ panel, onRegenerate, c
 
   return (
     <div className="relative group flex flex-col w-full aspect-square border-4 border-black bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+      {/* Keep UI text outside the artwork so it cannot cover generated details. */}
+      {panel.caption && !panel.isLoading && panel.imageData && (
+        <div className="shrink-0 max-h-[25%] overflow-y-auto bg-comic-yellow border-b-2 border-black px-3 py-1">
+          <p className="font-bangers tracking-wide text-sm uppercase text-black leading-tight break-words">{panel.caption}</p>
+        </div>
+      )}
+
       {/* Image Area */}
-      <div className="flex-1 relative w-full h-full bg-slate-100 flex items-center justify-center overflow-hidden">
+      <div className="relative flex-1 min-h-0 w-full bg-slate-100 flex items-center justify-center overflow-hidden p-1">
         {panel.isLoading ? (
           <div className="flex flex-col items-center justify-center text-slate-400 animate-pulse">
             <ImageIcon size={48} className="mb-2 opacity-50" />
@@ -41,7 +48,7 @@ const ComicPanelComponent: React.FC<ComicPanelProps> = ({ panel, onRegenerate, c
           <img
             src={panel.imageData}
             alt={t('panel.alt', { n: panel.panel_number, description: panel.description })}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
         ) : (
           <div className="text-slate-300 text-sm">{t('panel.noImage')}</div>
@@ -60,25 +67,12 @@ const ComicPanelComponent: React.FC<ComicPanelProps> = ({ panel, onRegenerate, c
         )}
       </div>
 
-      {/* Caption Box (Top Left) */}
-      {panel.caption && !panel.isLoading && panel.imageData && (
-        <div className="absolute top-0 left-0 max-w-[80%] bg-comic-yellow border-r-2 border-b-2 border-black px-3 py-1 z-10 shadow-sm">
-          <p className="font-bangers tracking-wide text-sm uppercase text-black leading-tight">{panel.caption}</p>
-        </div>
-      )}
-
-      {/* Dialogue Bubble (Bottom) */}
+      {/* Dialogue area sits below the image instead of overlaying it. */}
       {panel.dialogue && !panel.isLoading && panel.imageData && (
-        <div className="absolute bottom-4 left-4 right-4 z-10 pointer-events-none">
-          <div className="bg-white border-2 border-black rounded-[2rem] rounded-bl-none p-3 shadow-md inline-block max-w-full relative pointer-events-auto">
-            {/* Simple Bubble Tail */}
-            <div className="absolute -bottom-[10px] left-[10px] w-0 h-0 border-l-[10px] border-l-transparent border-t-[12px] border-t-black border-r-[0px] border-r-transparent"></div>
-            <div className="absolute -bottom-[6px] left-[12px] w-0 h-0 border-l-[6px] border-l-transparent border-t-[8px] border-t-white border-r-[0px] border-r-transparent"></div>
-
-            <p className="font-comic font-bold text-sm md:text-base leading-snug text-black">
-              {panel.character && (
-                <span className="text-comic-purple uppercase text-xs block mb-0.5">{panel.character}</span>
-              )}
+        <div className="relative shrink-0 max-h-[35%] overflow-y-auto min-h-[4.5rem] border-t-2 border-black bg-white px-3 py-2 flex items-center">
+          <div className="w-full rounded-2xl border-2 border-black px-3 py-2 shadow-sm">
+            <p className="font-comic font-bold text-sm md:text-base leading-snug text-black break-words">
+              {panel.character && <span className="text-comic-purple uppercase text-xs block mb-0.5">{panel.character}</span>}
               {panel.dialogue}
             </p>
           </div>
@@ -86,7 +80,7 @@ const ComicPanelComponent: React.FC<ComicPanelProps> = ({ panel, onRegenerate, c
       )}
 
       {/* Panel Number Badge */}
-      <div className="absolute bottom-0 right-0 bg-black text-white px-2 py-0.5 font-bangers text-xs z-10">
+      <div className="absolute top-1 right-1 bg-black text-white px-2 py-0.5 font-bangers text-xs z-10">
         #{panel.panel_number}
       </div>
     </div>

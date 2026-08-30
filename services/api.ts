@@ -54,7 +54,23 @@ export async function generatePanelImage(
   signal?: AbortSignal,
 ): Promise<string> {
   const modelConfig = IMAGE_MODELS.find((entry) => entry.value === model);
-  const styledPrompt = `${visualPrompt.trim()} Style: ${STYLE_PRESETS[style].suffix}.`;
+  // Keep generated artwork free of layout elements. Captions and dialogue are
+  // rendered by the app, which avoids unreadable model-generated text and
+  // keeps every panel's composition consistent.
+  const styledPrompt = `Create one single comic panel, not a full comic page.
+
+Scene:
+${visualPrompt.trim()}
+
+Art direction:
+${STYLE_PRESETS[style].suffix}.
+
+Composition and consistency rules:
+- Make the scene visually clear with a strong focal subject and readable facial expressions.
+- Keep every character's face, hair, body shape, clothing, colors, and accessories consistent with the description.
+- Use a clean composition with important subjects away from the extreme edges.
+- Do not draw speech bubbles, captions, panel borders, logos, watermarks, or any readable text.
+- Leave natural breathing room around the main subjects; do not place important details under UI overlays.`;
   const { image } = await postJson<{ image: string }>(
     '/api/image',
     {

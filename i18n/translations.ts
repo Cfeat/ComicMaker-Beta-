@@ -212,7 +212,7 @@ const zh: typeof en = {
   // 画风名称（键须与 STYLE_PRESETS 的 id 一致）
   'style.comic': '美漫',
   'style.manga': '日漫',
-  'style.noir': '黑色电影',
+  'style.noir': '黑白 Noir',
   'style.watercolor': '水彩',
   'style.cartoon': '卡通',
 

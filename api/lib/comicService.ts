@@ -83,7 +83,10 @@ const SCRIPT_JSON_SHAPE = `{
 
 function buildScriptUserPrompt(prompt: string): string {
   return `Create a funny or interesting 4-panel comic strip script based on this idea: "${prompt}".
-Ensure the visual prompts are highly descriptive for an image generation model, specifying a consistent comic book art style (e.g., 'vibrant comic book style, thick outlines, cel shaded').
+First establish a compact character bible inside the visual prompts: give every recurring character stable names, age range, physical appearance, clothing, colors, personality and distinctive props. Repeat the relevant character details in every panel where that character appears.
+Structure the four panels as setup, development, conflict and payoff. Make each panel visually different while preserving character, location and prop continuity.
+Ensure every visual prompt is self-contained and highly descriptive for an image generation model, including camera distance, composition, action, expression, lighting and the stable character details. Keep important subjects away from the edges. Do not include speech bubbles, captions, logos or readable text in the artwork; dialogue and captions are supplied separately by the app.
+Use concise dialogue that fits a UI bubble: maximum 12 words per dialogue and maximum 8 words per caption.
 Put the speaker's name in the "character" field and only their spoken words in "dialogue" (never a "Name:" prefix inside dialogue).
 
 Respond with ONLY a valid JSON object (no markdown fences, no commentary) using exactly this structure, with exactly 4 panels:

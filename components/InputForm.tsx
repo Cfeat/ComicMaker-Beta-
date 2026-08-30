@@ -84,18 +84,18 @@ export const InputForm: React.FC<InputFormProps> = ({ onSubmit, onSettingsChange
   return (
     <div className="w-full max-w-2xl mx-auto mb-8 relative z-20">
       <form onSubmit={handleSubmit} className="relative space-y-3">
-        <div className="relative flex items-stretch">
+          <div className="relative flex flex-col gap-2 sm:block">
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             disabled={isGenerating}
             placeholder={t('form.placeholder')}
-            className="w-full p-4 pr-32 text-lg rounded-xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:translate-x-[2px] focus:translate-y-[2px] transition-all resize-none h-24 font-comic"
+            className="w-full p-3 sm:p-4 sm:pr-32 text-base sm:text-lg rounded-xl border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:outline-none focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus:translate-x-[2px] focus:translate-y-[2px] transition-all resize-none h-24 font-comic"
           />
           <button
             type="submit"
             disabled={isGenerating || !prompt.trim()}
-            className={`absolute right-3 top-3 bottom-3 rounded-lg px-6 flex items-center justify-center font-bangers tracking-wider text-xl transition-all border-2 border-black
+            className={`relative w-full sm:absolute sm:right-3 sm:top-3 sm:bottom-3 sm:w-auto rounded-lg px-6 py-2 sm:py-0 flex items-center justify-center font-bangers tracking-wider text-xl transition-all border-2 border-black
               ${
                 isGenerating
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
@@ -110,13 +110,13 @@ export const InputForm: React.FC<InputFormProps> = ({ onSubmit, onSettingsChange
           </button>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2 font-sans text-sm font-bold text-slate-600">
-          <label className="flex items-center gap-2">
+          <label className="flex min-w-0 max-w-full items-center gap-2">
             {t('form.scriptModel')}
             <select
               value={scriptModel}
               onChange={(event) => updateScriptModel(event.target.value as ScriptModel)}
               disabled={isGenerating}
-              className={selectClass}
+              className={`${selectClass} min-w-0 max-w-full`}
             >
               {SCRIPT_MODELS.map((entry) => {
                 const available = isProviderAvailable(entry.provider);
@@ -129,13 +129,13 @@ export const InputForm: React.FC<InputFormProps> = ({ onSubmit, onSettingsChange
               })}
             </select>
           </label>
-          <label className="flex items-center gap-2">
+          <label className="flex min-w-0 max-w-full items-center gap-2">
             {t('form.artStyle')}
             <select
               value={style}
               onChange={(event) => updateStyle(event.target.value as ComicStyle)}
               disabled={isGenerating}
-              className={selectClass}
+              className={`${selectClass} min-w-0 max-w-full`}
             >
               {(Object.keys(STYLE_PRESETS) as ComicStyle[]).map((value) => (
                 <option key={value} value={value}>
@@ -144,13 +144,13 @@ export const InputForm: React.FC<InputFormProps> = ({ onSubmit, onSettingsChange
               ))}
             </select>
           </label>
-          <label className="flex items-center gap-2">
+          <label className="flex min-w-0 max-w-full items-center gap-2">
             {t('form.imageModel')}
             <select
               value={model}
               onChange={(event) => updateModel(event.target.value as ImageModel)}
               disabled={isGenerating}
-              className={selectClass}
+              className={`${selectClass} min-w-0 max-w-full`}
             >
               {IMAGE_MODELS.map((entry) => (
                 <option key={entry.value} value={entry.value}>

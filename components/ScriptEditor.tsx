@@ -28,12 +28,12 @@ export const ScriptEditor: React.FC<ScriptEditorProps> = ({
   return (
     <div className="w-full max-w-5xl mb-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4 px-2">
-        <label className="flex items-baseline gap-3 grow min-w-[240px]">
+        <label className="flex min-w-0 w-full sm:w-auto items-baseline gap-3 grow">
           <span className="text-xs font-bold uppercase text-slate-400 shrink-0">{t('editor.title')}</span>
           <input
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
-            className="font-bangers text-3xl text-slate-800 bg-transparent border-b-2 border-dashed border-slate-300 focus:border-comic-purple focus:outline-none grow"
+            className="min-w-0 w-full font-bangers text-2xl sm:text-3xl text-slate-800 bg-transparent border-b-2 border-dashed border-slate-300 focus:border-comic-purple focus:outline-none grow"
             aria-label={t('editor.title')}
             placeholder={t('editor.untitled')}
           />
