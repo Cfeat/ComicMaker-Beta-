@@ -1,5 +1,5 @@
-import { createComicScript, generateImage, HttpError } from './comicService';
-import { IMAGE_MODELS, SCRIPT_MODELS, type ScriptProvider } from '../types';
+import { createComicScript, generateImage, HttpError } from './comicService.js';
+import { IMAGE_MODELS, SCRIPT_MODELS, type ScriptProvider } from '../../types.js';
 
 export interface ServerEnv {
   GEMINI_API_KEY?: string;

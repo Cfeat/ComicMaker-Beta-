@@ -1,5 +1,5 @@
 import { env } from 'node:process';
-import { handleConfigRequest } from '../server/routes';
+import { handleConfigRequest } from './lib/routes.js';
 
 function json(status: number, data: unknown): Response {
   return new Response(JSON.stringify(data), {
@@ -8,10 +8,7 @@ function json(status: number, data: unknown): Response {
   });
 }
 
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method !== 'GET') {
-    return json(405, { error: 'Method not allowed. Use GET.' });
-  }
+export async function GET(): Promise<Response> {
   const result = handleConfigRequest({
     GEMINI_API_KEY: env.GEMINI_API_KEY,
     IMAGE_API_KEY: env.IMAGE_API_KEY,

@@ -32,10 +32,8 @@ The keys live only in server-side environment variables. Never prefix them with 
 
 ```
 api/                    # Vercel serverless functions (script, image, config)
+  lib/                  # Shared server-side route and AI service logic
 i18n/                   # zh/en translation dictionaries + LanguageProvider
-server/
-  comicService.ts       # Gemini + GPT script writers, image API forwarding, server-side retry
-  routes.ts             # Request validation, shared by /api functions and the dev proxy
 services/
   api.ts                # Browser-side API client (fetch /api/*, error mapping, URL→dataURL)
   retry.ts              # Abortable exponential-backoff retry helper

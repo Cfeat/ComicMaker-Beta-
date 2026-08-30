@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Schema } from '@google/genai';
-import type { ComicScript, ScriptProvider } from '../types';
+import type { ComicScript, ScriptProvider } from '../../types.js';
 
 export const DEFAULT_IMAGE_API_BASE_URL = 'https://api.guigesama.xyz/v1';
 

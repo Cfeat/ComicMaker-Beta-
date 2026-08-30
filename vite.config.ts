@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Buffer } from 'node:buffer';
 import { cwd } from 'node:process';
-import { handleConfigRequest, handleImageRequest, handleScriptRequest, toErrorResponse, type RouteResult } from './server/routes';
+import { handleConfigRequest, handleImageRequest, handleScriptRequest, toErrorResponse, type RouteResult } from './api/lib/routes.js';
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];

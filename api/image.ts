@@ -1,5 +1,5 @@
 import { env } from 'node:process';
-import { handleImageRequest, toErrorResponse } from '../server/routes';
+import { handleImageRequest, toErrorResponse } from './lib/routes.js';
 
 // Image generation can take tens of seconds, so raise the limit beyond the
 // 10s default.
@@ -12,10 +12,7 @@ function json(status: number, data: unknown): Response {
   });
 }
 
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method !== 'POST') {
-    return json(405, { error: 'Method not allowed. Use POST.' });
-  }
+export async function POST(request: Request): Promise<Response> {
   const body = await request.json().catch(() => null);
   try {
     const result = await handleImageRequest(body, {
